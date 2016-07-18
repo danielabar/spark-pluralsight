@@ -71,3 +71,22 @@ val counts = countPrep.reduceByKey((accumValue, newValue)=>accumValue + newValue
 ```
 
 Sorting list of word count pairs on the count in descending value. `_2` is Scala's way of accessing the object in the second position of a tuple, which is how key-value pair is represented.
+
+## Spark Core: Part 1
+
+### Spark Application
+
+All spark applications are managed by a single point, called the _Driver_.
+
+__Driver__ is coordinator of work distributing to as many workers as configured. Driver management is handled through the starting point of any spark application, which is the _SparkContext_.
+
+__SparkContext__ All spark apps are built around this central manager, which orchestrates all the separate pieces of the distributed app. Responsible for:
+
+* Task creator - builds execution graph that will be sent to each worker.
+* Scheduler - schedules work across nodes.
+* Data locality - takes advantage of existing data location knowledge, sending the work to the data, to avoid unnecessary data movement across network.
+* Fault tolerance - monitors tasks for failures so that it can trigger a rebuild of that portion of the dataset on another worker.
+
+It's possible to create multiple spark context's within the same process but not recommended.
+
+Standalone app must build its own spark context (unlike spark-shell that automaticaly builds and exposes the `sc` variable).
