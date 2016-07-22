@@ -7,7 +7,7 @@
 Run spark-shell with [Docker](https://hub.docker.com/r/gettyimages/spark/)
 
 ```shell
-docker run --rm -it -p 4040:4040 gettyimages/spark bash
+docker run --rm -it -p 4040:4040 -v /Users/dbaron/projects/spark-pluralsight/target/scala-2.11:/data gettyimages/spark bash
 spark-shell
 ```
 
@@ -74,7 +74,29 @@ Sorting list of word count pairs on the count in descending value. `_2` is Scala
 
 ## Spark Core: Part 1
 
+Course will be using SBT for building Scala apps.
+
 ### Spark Application
+
+[Standalone app](src/main/scala/WordCount.scala) must build its own spark context (unlike spark-shell that automatically builds and exposes the `sc` variable).
+
+Spark dependency is managed in [build.sbt](build.sbt). "provided" specifies that the Spark container application will provide the dependency at runtime.
+
+To build an executable jar, run `sbt package`, noting the location of the generated jar: `/Users/dbaron/projects/spark-pluralsight/target/scala-2.11/spark-pluralsight_2.11-1.0.jar`
+
+To submit application to be executed, pass in fully qualified name of class where main method is defined, address of master node, "*" specifies to use as many cores as possible,
+and provide path to jar containing spark application that was just packaged.
+
+This works given the volume mount specified when running the Spark Docker container.
+
+```shell
+spark-submit --class "main.WordCounter" --master "local[*]" "/data/spark-pluralsight_2.11-1.0.jar"
+```
+
+Note that any space separated arguments passed in at the end of the above command line will be passed in as arguments to the main method.
+This can be used to make the application more dynamic, for example, by passing in the input and output file paths rather than hard-coding them in the program.
+
+### What is an RDD?
 
 All spark applications are managed by a single point, called the _Driver_.
 
@@ -89,4 +111,3 @@ __SparkContext__ All spark apps are built around this central manager, which orc
 
 It's possible to create multiple spark context's within the same process but not recommended.
 
-Standalone app must build its own spark context (unlike spark-shell that automaticaly builds and exposes the `sc` variable).
