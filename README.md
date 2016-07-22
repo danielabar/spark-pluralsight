@@ -78,6 +78,19 @@ Course will be using SBT for building Scala apps.
 
 ### Spark Application
 
+All spark applications are managed by a single point, called the _Driver_.
+
+__Driver__ is coordinator of work distributing to as many workers as configured. Driver management is handled through the starting point of any spark application, which is the _SparkContext_.
+
+__SparkContext__ All spark apps are built around this central manager, which orchestrates all the separate pieces of the distributed app. Responsible for:
+
+* Task creator - builds execution graph that will be sent to each worker.
+* Scheduler - schedules work across nodes.
+* Data locality - takes advantage of existing data location knowledge, sending the work to the data, to avoid unnecessary data movement across network.
+* Fault tolerance - monitors tasks for failures so that it can trigger a rebuild of that portion of the dataset on another worker.
+
+It's possible to create multiple spark context's within the same process but not recommended.
+
 [Standalone app](src/main/scala/WordCount.scala) must build its own spark context (unlike spark-shell that automatically builds and exposes the `sc` variable).
 
 Spark dependency is managed in [build.sbt](build.sbt). "provided" specifies that the Spark container application will provide the dependency at runtime.
@@ -98,16 +111,44 @@ This can be used to make the application more dynamic, for example, by passing i
 
 ### What is an RDD?
 
-All spark applications are managed by a single point, called the _Driver_.
+Resilient distributed dataset.
 
-__Driver__ is coordinator of work distributing to as many workers as configured. Driver management is handled through the starting point of any spark application, which is the _SparkContext_.
+Official definition: Collection of elements partitioned across the nodes of the cluster that can be operated on in parallel.
 
-__SparkContext__ All spark apps are built around this central manager, which orchestrates all the separate pieces of the distributed app. Responsible for:
+Collection, similar to list or array. Interface that makes it seem like any other collection. 
 
-* Task creator - builds execution graph that will be sent to each worker.
-* Scheduler - schedules work across nodes.
-* Data locality - takes advantage of existing data location knowledge, sending the work to the data, to avoid unnecessary data movement across network.
-* Fault tolerance - monitors tasks for failures so that it can trigger a rebuild of that portion of the dataset on another worker.
+In the word count program, loading of text file, manipulating and saving data, has been working with RDD. 
 
-It's possible to create multiple spark context's within the same process but not recommended.
+Interface makes it easy to think in collections, while behind the scenes, work is distributed across cluster of machines, so that computation can be run in parallel, reducing processing time. 
 
+Even if one point fails, rest of system can continue processing, while failure can be restarted elsewhere. RDD is designed with fault tolerance. This works because most functions in Spark are lazy.
+
+Instead of immediately executing the functions instructions, instructions are _stored_ for later use in _DAG_ - directed acyclic graph.
+
+Graph of instructions grows through series of calls to _Transformations_ such as map, filter, etc.
+
+DAG is a buildup of functional lineage that will be sent to the workers, which will use instructions to compute final output for spark app.
+
+Lineage awareness makes it possible to handle failures. Each RDD in graph knows how it was built, so it can choose the best path for recovery.
+
+At some point, work needs to be done, this is where...
+
+__Actions__ - set of methods that trigger computations, eg collect, count, reduce. These trigger DAG execution and result in final action against in data, such as returning to driver program or saving to persistent storage.
+
+RDD is _immutable_. Once created, can no longer change it. This refers to the _lineage_, not the data driving it.
+
+Each action triggers fresh execution of the graph. If underlying data changes, then so will the final results (although caching can alter this behaviour, discussed later).
+ 
+__Spark Mechanics__
+
+![spark mechanics](images/spark-mechanics.png "Spark Mechanics")
+
+RDD may be operated on like any other collection, but its distributed across cluster, to be executed in parallel across cpus and/or machines.
+
+Driver application runs just like any other application, until an action is triggered, at which point, the driver and its context distributes the tasks to each node, each of which transform their chunks.
+
+When all nodes have completed their tasks, then next stage of DAG is triggered, repeating until entire graph is completed.
+
+If a chunk of data is lost, DAG scheduler finds a new node and restarts the transformation from correct point, returning to synchronization with rest of the nodes.
+
+### Loading Data
