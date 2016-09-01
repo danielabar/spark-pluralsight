@@ -1,3 +1,18 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Apache Spark Fundamentals](#apache-spark-fundamentals)
+  - [Hello World: Counting Words](#hello-world-counting-words)
+  - [Spark Core: Part 1](#spark-core-part-1)
+    - [Spark Application](#spark-application)
+    - [What is an RDD?](#what-is-an-rdd)
+    - [Loading Data](#loading-data)
+      - [Loading from Memory](#loading-from-memory)
+      - [Loading from External Source](#loading-from-external-source)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Apache Spark Fundamentals
 
 > My course notes from [Spark course](https://app.pluralsight.com/library/courses/apache-spark-fundamentals/table-of-contents) on Pluralsight.
@@ -97,8 +112,7 @@ Spark dependency is managed in [build.sbt](build.sbt). "provided" specifies that
 
 To build an executable jar, run `sbt package`, noting the location of the generated jar: `/Users/dbaron/projects/spark-pluralsight/target/scala-2.11/spark-pluralsight_2.11-1.0.jar`
 
-To submit application to be executed, pass in fully qualified name of class where main method is defined, address of master node, "*" specifies to use as many cores as possible,
-and provide path to jar containing spark application that was just packaged.
+To submit application to be executed, pass in fully qualified name of class where main method is defined, address of master node, "\*" (remove the slash) specifies to use as many cores as possible, and provide path to jar containing spark application that was just packaged.
 
 This works given the volume mount specified when running the Spark Docker container.
 
@@ -152,3 +166,51 @@ When all nodes have completed their tasks, then next stage of DAG is triggered, 
 If a chunk of data is lost, DAG scheduler finds a new node and restarts the transformation from correct point, returning to synchronization with rest of the nodes.
 
 ### Loading Data
+
+Spark can handle numerous input sources such as file system, distributed file system such as HDFS, or Amazon S3. Change the file path from `file:/` to `hdfs:/` or `s3n:/`.
+
+Can also handle databases, distributed like Cassandra. File formats can be Parkquet, Avro, etc. 
+
+#### Loading from Memory
+
+Can also load from memory, for example, in spark-shell:
+
+```scala
+scala> sc.parallelize(1 to 100)
+res0: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:25
+```
+
+SparkContext is the starting point for loading data into an initial RDD.
+
+`sc.parallelize` distributes a range sequence. Collect back to shell driver to view the sequence:
+
+```scala
+scala> res0.collect
+es1: Array[Int] = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100)
+```
+
+Note that ordering is retained, RDD will maintain order if possible.
+
+To see any method signature, enter in shell for example `sc.paral` then hit tab once for autocompete, then tab again for signature.
+
+```scala
+def parallelize[T](seq: Seq[T],numSlices: Int)(implicit evidence$1: scala.reflect.ClassTag[T]): org.apache.spark.rdd.RDD[T]
+```
+
+`sc.parallelize` takes any sequence `seq: Seq[T]`, also takes an optional parameter to override number of partitions `numSlices: Int`. 
+Most RDD loading methods have this optional parameter. If not supplied, uses the default parallelism, in a local shell, will be number of cores.
+
+`sc.makeRDD` does the same thing as `sc.parallelize`.
+
+There is another method for loading in a range:
+
+```scala
+sc.range(1, 100).collect
+res2: Array[Long] = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99)
+```
+
+`sc.range` method is built specifically for range scenario, has parameter for step size, which defaults to 1: `def range(start: Long,end: Long,step: Long,numSlices: Int): org.apache.spark.rdd.RDD[Long]`
+
+#### Loading from External Source
+
+For example, to read an entire file so it can be parsed as a single object. Use `sc.wholeTextFiles`
