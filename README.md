@@ -47,7 +47,7 @@ textFile: org.apache.spark.rdd.RDD[String] = /usr/spark-2.0.0-preview/README.md 
 
 __RDD__ - Resilient distributed dataset. It's just an _abstraction_ of the operations declared.
 
-Spark's core operations are split into two catogories:
+Spark's core operations are split into two categories:
 
 __Transformations__ - Lazily evaluated, only storing the intent.
 
@@ -213,4 +213,32 @@ res2: Array[Long] = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 
 #### Loading from External Source
 
-For example, to read an entire file so it can be parsed as a single object. Use `sc.wholeTextFiles`
+For example, to read an entire file so it can be parsed as a single object. Use `sc.wholeTextFiles`. Accepts a directory path (also supports wildcards) so it can load more than one file.
+
+```
+def wholeTextFiles(path: String,minPartitions: Int): org.apache.spark.rdd.RDD[(String, String)]
+```
+
+Often, data comes in a key-value format. To use this, import hadoop io namespace to make use of its writeable classes to load sequence files.
+`sc.sequenceFile` takes path to file, a class type for the keys, and one for value. These classes must extend `Writable`.
+
+```scala
+scala> import org.apache.hadoop.io._
+scala> sc.sequenceFile("file:///Data/SampleSquenceFile", classOf[Text], classOf]IntWritable])
+```
+
+Recommend after loading data, immediately mapping to native types, which avoids serialization issues with Hadoop:
+
+```scala
+scala> .map(kv=>(kv._1.toString, kv._2.get))
+```
+
+To avoid having to map, use the definition of `sc.sequenceFile` that takes native types `def sequenceFile[K, V](path: String,minPartitions: Int)(implicit km: scala.reflect.ClassTag[K],implicit vm: scala.reflect.ClassTag[V],implicit kcf: () => org.apache.spark.WritableConverter[K],implicit vcf: () => org.apache.spark.WritableConverter[V]): org.apache.spark.rdd.RDD[(K, V)]`
+
+Simpler usage:
+
+```scala
+sc.sequenceFile[String, Int]("file:///Data/SampleSquenceFile")
+```
+
+All the file loading methods are wrappers around themore generic `sc.hadoopFile`
