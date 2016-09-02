@@ -23,6 +23,8 @@ Run spark-shell with [Docker](https://hub.docker.com/r/gettyimages/spark/)
 
 ```shell
 docker run --rm -it -p 4040:4040 -v /Users/dbaron/projects/spark-pluralsight/target/scala-2.11:/data gettyimages/spark bash
+OR
+docker run --rm -it -p 4040:4040 -v /Users/dbaron/projects/spark-pluralsight:/data gettyimages/spark bash
 spark-shell
 ```
 
@@ -118,6 +120,8 @@ This works given the volume mount specified when running the Spark Docker contai
 
 ```shell
 spark-submit --class "main.WordCounter" --master "local[*]" "/data/spark-pluralsight_2.11-1.0.jar"
+OR
+spark-submit --class "main.WordCounter" --master "local[*]" "/data/target/scala-2.11/spark-pluralsight_2.11-1.0.jar"
 ```
 
 Note that any space separated arguments passed in at the end of the above command line will be passed in as arguments to the main method.
@@ -241,4 +245,22 @@ Simpler usage:
 sc.sequenceFile[String, Int]("file:///Data/SampleSquenceFile")
 ```
 
-All the file loading methods are wrappers around themore generic `sc.hadoopFile`
+All the file loading methods are wrappers around the more generic `sc.hadoopFile`, that handles any Hadoop supported file format. It takes key and value type. 
+Additional parameter for input format type provides generic flexibility to handle anything:
+
+```scala
+def hadoopFile[K, V](path: String,inputFormatClass: Class[_ <: org.apache.hadoop.mapred.InputFormat[K,V]],keyClass: Class[K],valueClass: Class[V],minPartitions: Int): org.apache.spark.rdd.RDD[(K, V)]
+```
+
+All of the above is the __OLD__ Hadoop API.
+
+__NEW__ Hadoop API's similar to old, but do not accept a partitioning hint, but do accept an optional Hadoop configuration to override existing provided by Spark.
+
+```scala
+sc.newAPIHadoopFile
+def newAPIHadoopFile[K, V, F <: org.apache.hadoop.mapreduce.InputFormat[K,V]](path: String,fClass: Class[F],kClass: Class[K],vClass: Class[V],conf: org.apache.hadoop.conf.Configuration): org.apache.spark.rdd.RDD[(K, V)]
+def newAPIHadoopFile[K, V, F <: org.apache.hadoop.mapreduce.InputFormat[K,V]](path: String)(implicit km: scala.reflect.ClassTag[K],implicit vm: scala.reflect.ClassTag[V],implicit fm: scala.reflect.ClassTag[F]): org.apache.spark.rdd.RDD[(K, V)]
+```
+
+One final even more generic method is `sc.hadoopRDD`. Only difference between hadoopFile and hadoopRDD is that it doesn't take a path, because input format doesn't _have_ to be a file. 
+Instead, both old and new API versions accept a `JobConf`, which is configured for the particular input being loaded. 

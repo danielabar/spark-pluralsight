@@ -20,7 +20,7 @@ object WordCounter {
     // it gets cloned and becomes immutable wrt context, and any further changes made to conf object will have no effect to the application.
     val sc = new SparkContext(conf)
 
-    val textFile = sc.textFile("/usr/spark-2.0.0-preview/README.md")
+    val textFile = sc.textFile("/usr/spark-2.0.0/README.md")
     val tokenizedFileData = textFile.flatMap(line=>line.split(" "))
     val countPrep = tokenizedFileData.map(word=>(word, 1))
     val counts = countPrep.reduceByKey((accumValue, newValue)=>accumValue + newValue)
