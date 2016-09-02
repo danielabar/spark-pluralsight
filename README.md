@@ -263,4 +263,27 @@ def newAPIHadoopFile[K, V, F <: org.apache.hadoop.mapreduce.InputFormat[K,V]](pa
 ```
 
 One final even more generic method is `sc.hadoopRDD`. Only difference between hadoopFile and hadoopRDD is that it doesn't take a path, because input format doesn't _have_ to be a file. 
-Instead, both old and new API versions accept a `JobConf`, which is configured for the particular input being loaded. 
+Instead, both old and new API versions accept a `JobConf`, which is [configured](src/main/scala/Evaluator.scala#L11) for the particular input being loaded.
+
+#### Hadoop StreaXmlRrecordReader
+
+Splits xml document into parallelizable chunks. For example, wiki page dumps doc with multiple `<page>` nodes:
+
+```scala
+val jobConf = new JobConf()
+jobConf.set("stream.recordreader.class", "org.apache.hadoop.streaming.StreamXmlRecordReader")
+jobConf.set("stream.recordreader.begin", "<page>")
+jobConf.set("stream.recordreader.end", "</page")
+FileInputFormat.addInputPaths(jobConf, "/data/sample-data/wiki_big_data.xml")
+val wikiDocuments = sc.hadoopRDD(jobConf, classOf[org.apache.hadoop.streaming.StreamInputFormat], classOf[Text], classOf[Text])
+```
+
+Need to add hadoop streaming dependency to build.sbt because its not part of the standard Spark packaging.
+Hadoop version must match the version installed as part of Spark installation:
+
+```scala
+libraryDependencies ++= Seq(
+  "org.apache.spark" % "spark-core_2.10" % "1.4.0" % "provided",
+  "org.apache.hadoop" % "hadoop-streaming" % "2.6.0"
+)
+```
